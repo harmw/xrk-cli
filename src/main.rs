@@ -1,7 +1,7 @@
+use clap::{Command, arg, command, value_parser};
 use std::path::Path;
 use std::path::PathBuf;
 use xdrk::Run;
-use clap::{arg, command, value_parser, Command};
 
 mod commands;
 
@@ -13,36 +13,30 @@ fn main() {
             arg!(
                 -f --file <FILE> "Data file to load"
             )
-                .required(true)
-                .value_parser(value_parser!(PathBuf)),
+            .required(true)
+            .value_parser(value_parser!(PathBuf)),
         )
         .arg(
             arg!(
                 -o --output <OUTPUT> "Output, can be <text> or <json>"
             )
-                .required(false)
-                .default_value("text")
-                .value_parser(value_parser!(String)),
+            .required(false)
+            .default_value("text")
+            .value_parser(value_parser!(String)),
         )
         .arg(arg!(
             -v --verbose ... "Enable verbose logging"
         ))
+        .subcommand(Command::new("info").about("Get session info"))
         .subcommand(
-            Command::new("info")
-                .about("Get session info")
+            Command::new("laps").about("Print lap timings"), // .arg(arg!(-l --list "lists test values").action(ArgAction::SetTrue)),
         )
-        .subcommand(
-            Command::new("laps")
-                .about("Print lap timings")
-            // .arg(arg!(-l --list "lists test values").action(ArgAction::SetTrue)),
-        )
-        .subcommand(
-            Command::new("channels")
-                .about("Get data channel info")
-        )
+        .subcommand(Command::new("channels").about("Get data channel info"))
         .get_matches();
 
-    let data_file = matches.get_one::<std::path::PathBuf>("file").expect("required");
+    let data_file = matches
+        .get_one::<std::path::PathBuf>("file")
+        .expect("required");
 
     // println!("Using output mode: {output_mode}");
 
