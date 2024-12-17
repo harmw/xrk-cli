@@ -8,7 +8,7 @@ mod commands;
 fn main() {
     let matches = command!() // requires `cargo` feature
         .subcommand_required(true)
-        .about("AiM XRK Data Reader")
+        .about("XRK Data Reader")
         .arg(
             arg!(
                 -f --file <FILE> "Data file to load"
@@ -28,10 +28,11 @@ fn main() {
             -v --verbose ... "Enable verbose logging"
         ))
         .subcommand(Command::new("info").about("Get session info"))
+        .subcommand(Command::new("lap").about("Preview single lap data for all channels"))
         .subcommand(
             Command::new("laps").about("Print lap timings"), // .arg(arg!(-l --list "lists test values").action(ArgAction::SetTrue)),
         )
-        .subcommand(Command::new("channels").about("Get data channel info"))
+        .subcommand(Command::new("channels").about("Preview data from all channels"))
         .get_matches();
 
     let data_file = matches
@@ -81,6 +82,17 @@ fn main() {
         match Run::load(file_path) {
             Ok(run) => {
                 commands::channels::display_channels_list(&run);
+            }
+            Err(err) => {
+                eprintln!("Failed to load: {}", err);
+            }
+        }
+    }
+
+    if let Some(matches) = matches.subcommand_matches("lap") {
+        match Run::load(file_path) {
+            Ok(run) => {
+                commands::lap::display_run_info(&run);
             }
             Err(err) => {
                 eprintln!("Failed to load: {}", err);
