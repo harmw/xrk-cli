@@ -39,7 +39,7 @@ pub fn display_run_info(run: &Run) {
             lap,
             run.channel_name(id).unwrap(),
             run.channel_unit(id).unwrap(),
-            run.channel_samples_count(id).unwrap_or_else(|e| { 0 }),
+            run.lap_channel_samples_count(lap_index, id).unwrap_or_else(|e| { 0 }),
             preview_timestamps,
             preview_data
         );
@@ -69,7 +69,7 @@ pub fn display_run_info(run: &Run) {
             lap,
             run.gps_channel_name(id).unwrap(),
             run.gps_channel_unit(id).unwrap(),
-            run.gps_channel_samples_count(id).unwrap_or_else(|e| 0),
+            run.lap_gps_channel_samples_count(lap_index, id).unwrap_or_else(|e| 0),
             preview_timestamps,
             preview_data
         );
@@ -99,7 +99,7 @@ pub fn display_run_info(run: &Run) {
             lap,
             run.gps_raw_channel_name(id).unwrap(),
             run.gps_raw_channel_unit(id).unwrap(),
-            run.gps_raw_channel_samples_count(id).unwrap_or_else(|e| 0),
+            run.lap_gps_raw_channel_samples_count(lap_index, id).unwrap_or_else(|e| 0),
             preview_timestamps,
             preview_data
         );
