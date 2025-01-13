@@ -1,4 +1,5 @@
-use clap::{arg, command, value_parser, Command};
+use clap::{arg, command, value_parser, Arg, Command};
+use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use xdrk::Run;
@@ -33,7 +34,16 @@ fn main() {
             Command::new("laps").about("Print lap timings"), // .arg(arg!(-l --list "lists test values").action(ArgAction::SetTrue)),
         )
         .subcommand(Command::new("channels").about("Preview data from all channels"))
-        .subcommand(Command::new("export").about("Export channel data"))
+        .subcommand(
+            Command::new("export").about("Export channel data").arg(
+                Arg::new("channels")
+                    .short('c')
+                    .long("channels")
+                    // .takes_value(true)
+                    .value_name("CHANNELS")
+                    .help("Comma-separated list of channels to export (e.g., \"Logger Temperature\",P_BRK_FRONT)"),
+            ),
+        )
         .get_matches();
 
     let data_file = matches
@@ -103,9 +113,18 @@ fn main() {
 
     if let Some(matches) = matches.subcommand_matches("export") {
         eprintln!("Loading data from file");
+
+        let desired_channels: Option<HashSet<&str>> =
+            matches.get_one::<String>("channels").map(|channels_str| {
+                channels_str
+                    .split(',')
+                    .map(|s| s.trim())
+                    .collect::<HashSet<&str>>()
+            });
+
         match Run::load(file_path) {
             Ok(run) => {
-                commands::export::export(&run);
+                commands::export::export(&run, desired_channels);
             }
             Err(err) => {
                 eprintln!("Failed to load: {}", err);

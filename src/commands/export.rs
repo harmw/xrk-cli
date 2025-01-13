@@ -40,7 +40,6 @@ fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
             }
         }
 
-        // Convert headers to &str for CSV writer
         let header_refs: Vec<&str> = headers.iter().map(String::as_str).collect();
         if writer.write_record(&header_refs).is_err() {
             return false;
@@ -56,14 +55,14 @@ fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
                 .unwrap_or(0);
 
             eprintln!(
-                "[CSV] Processing {} datapoints in lap with index {}",
-                max_data_points, lap.lap
+                "[CSV] Processing {} datapoints in lap {}",
+                max_data_points, lap.lap + 1
             );
 
             for i in 0..max_data_points {
-                let mut row = vec![lap.lap.to_string()];
+                let mut row = vec![(lap.lap + 1).to_string()];
 
-                // For each channel, write the data point value and unit
+                // Write the value and unit per row
                 for channel in &lap.channels {
                     if let Some(data_point) = channel.data.get(i) {
                         row.push(data_point.v.to_string());
@@ -74,7 +73,7 @@ fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
                     }
                 }
 
-                // Write the row to the CSV
+                // Write the row to file
                 if writer.write_record(row).is_err() {
                     return false;
                 }
@@ -93,18 +92,21 @@ fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
     }
 }
 
-pub fn export(run: &Run) {
+pub fn export(run: &Run, desired_channels: Option<HashSet<&str>>) {
     let mut laps: Vec<LapData> = Vec::new();
-    let desired_channels: HashSet<&str> = ["OIL", "WAT", "gLon", "gLat", "pBrakeF", "pBrakeR"]
-        .iter()
-        .cloned()
-        .collect();
+    let desired_channels = desired_channels.unwrap_or_else(|| {
+        // TODO: either put in some default channels or just go with exporting _all channels_
+        ["OIL", "WAT", "gLon", "gLat", "pBrakeF", "pBrakeR"]
+            .iter()
+            .cloned()
+            .collect()
+    });
 
     let desired_channels_len = desired_channels.len();
-    eprintln!("Preparing to export {desired_channels_len} channels per lap");
+    eprintln!("Preparing to export {desired_channels_len} channel(s) per lap");
 
     for lap_index in 0..run.number_of_laps() {
-        eprintln!("Processing channel data for lap with index {lap_index}");
+        eprintln!("Processing channel data for lap {}", lap_index+1);
 
         let mut channel_data_list: Vec<ChannelData> = Vec::new();
 
