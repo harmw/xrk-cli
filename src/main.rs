@@ -1,4 +1,4 @@
-use clap::{Command, arg, command, value_parser};
+use clap::{arg, command, value_parser, Command};
 use std::path::Path;
 use std::path::PathBuf;
 use xdrk::Run;
@@ -33,6 +33,7 @@ fn main() {
             Command::new("laps").about("Print lap timings"), // .arg(arg!(-l --list "lists test values").action(ArgAction::SetTrue)),
         )
         .subcommand(Command::new("channels").about("Preview data from all channels"))
+        .subcommand(Command::new("export").about("Export channel data"))
         .get_matches();
 
     let data_file = matches
@@ -93,6 +94,18 @@ fn main() {
         match Run::load(file_path) {
             Ok(run) => {
                 commands::lap::display_run_info(&run);
+            }
+            Err(err) => {
+                eprintln!("Failed to load: {}", err);
+            }
+        }
+    }
+
+    if let Some(matches) = matches.subcommand_matches("export") {
+        eprintln!("Loading data from file");
+        match Run::load(file_path) {
+            Ok(run) => {
+                commands::export::export(&run);
             }
             Err(err) => {
                 eprintln!("Failed to load: {}", err);
