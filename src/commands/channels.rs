@@ -2,7 +2,7 @@ use xdrk::Run;
 
 pub fn display_channels_list(run: &Run) {
     println!(
-        "{:<20} {:<10} {:<20} {:<20} {:<60} {:<50}",
+        "{:<20} {:<10} {:<20} {:<20} {:<30} {:<50}",
         "CHANNEL".to_string(),
         "UNIT".to_string(),
         "COUNT".to_string(),
@@ -25,12 +25,12 @@ pub fn display_channels_list(run: &Run) {
         let preview_timestamps = &channel_data.timestamps()
             [..channel_data.timestamps().len().min(3)]
             .iter()
-            .map(|&val| format!("{}", val))
+            .map(|&val| format!("{:.3}", val))
             .collect::<Vec<String>>()
             .join(", ");
 
         println!(
-            "{:<20} {:<10} {:<20} {:<20} {:<60} {:<50}",
+            "{:<20} {:<10} {:<20} {:<20} {:<30} {:<50}",
             run.channel_name(id).unwrap(),
             run.channel_unit(id).unwrap(),
             run.channel_samples_count(id).unwrap_or_else(|e| { 0 }),
@@ -54,12 +54,12 @@ pub fn display_channels_list(run: &Run) {
         let preview_timestamps = &channel_data.timestamps()
             [..channel_data.timestamps().len().min(3)]
             .iter()
-            .map(|&val| format!("{}", val))
+            .map(|&val| format!("{:.3}", val))
             .collect::<Vec<String>>()
             .join(", ");
 
         println!(
-            "{:<20} {:<10} {:<20} {:<20} {:<60} {:<50}",
+            "{:<20} {:<10} {:<20} {:<20} {:<30} {:<50}",
             run.gps_channel_name(id).unwrap(),
             run.gps_channel_unit(id).unwrap(),
             run.gps_channel_samples_count(id).unwrap_or_else(|e| 0),
@@ -83,12 +83,12 @@ pub fn display_channels_list(run: &Run) {
         let preview_timestamps = &channel_data.timestamps()
             [..channel_data.timestamps().len().min(3)]
             .iter()
-            .map(|&val| format!("{}", val))
+            .map(|&val| format!("{:.3}", val))
             .collect::<Vec<String>>()
             .join(", ");
 
         println!(
-            "{:<20} {:<10} {:<20} {:<20} {:<60} {:<50}",
+            "{:<20} {:<10} {:<20} {:<20} {:<30} {:<50}",
             run.gps_raw_channel_name(id).unwrap(),
             run.gps_raw_channel_unit(id).unwrap(),
             run.gps_raw_channel_samples_count(id).unwrap_or_else(|e| 0),
