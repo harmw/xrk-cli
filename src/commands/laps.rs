@@ -12,11 +12,14 @@ pub fn display_laps_info(run: &Run) {
         let info = run.lap_info(lap);
         match info {
             Ok(lap_info) => {
+                let start_time = format!("{:.3}", lap_info.start());
+                let duration = format!("{:.3}", lap_info.time());
+
                 println!(
                     "{:<10} {:<20} {:<20}",
                     lap_info.number(),
-                    lap_info.start(),
-                    lap_info.time()
+                    start_time,
+                    duration
                 );
             }
             Err(e) => {
