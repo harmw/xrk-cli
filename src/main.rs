@@ -1,4 +1,4 @@
-use clap::{arg, command, value_parser, Arg, Command};
+use clap::{arg, command, value_parser, Arg, ArgAction, Command};
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
@@ -33,7 +33,14 @@ fn main() {
         .subcommand(
             Command::new("laps").about("Print lap timings"), // .arg(arg!(-l --list "lists test values").action(ArgAction::SetTrue)),
         )
-        .subcommand(Command::new("channels").about("Preview data from all channels"))
+        .subcommand(
+            Command::new("channels").about("Preview data from all channels").arg(
+                Arg::new("preview")
+                    .long("preview")
+                    .help("Give a small preview of datapoints available in channel")
+                    .action(ArgAction::SetTrue),
+            ),
+        )
         .subcommand(
             Command::new("export").about("Export channel data").arg(
                 Arg::new("channels")
@@ -90,9 +97,11 @@ fn main() {
     }
 
     if let Some(matches) = matches.subcommand_matches("channels") {
+        let preview_enabled = matches.get_flag("preview");
+
         match Run::load(file_path) {
             Ok(run) => {
-                commands::channels::display_channels_list(&run);
+                commands::channels::display_channels_list(&run, preview_enabled);
             }
             Err(err) => {
                 eprintln!("Failed to load: {}", err);
