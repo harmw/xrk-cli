@@ -17,24 +17,13 @@ fn main() {
             .required(true)
             .value_parser(value_parser!(PathBuf)),
         )
-        .arg(
-            arg!(
-                -o --output <OUTPUT> "Output, can be <text> or <json>"
-            )
-            .required(false)
-            .default_value("text")
-            .value_parser(value_parser!(String)),
-        )
-        .arg(arg!(
-            -v --verbose ... "Enable verbose logging"
-        ))
         .subcommand(Command::new("info").about("Get session info"))
-        .subcommand(Command::new("lap").about("Preview single lap data for all channels"))
+        .subcommand(Command::new("lap").about("Preview single lap data for all channels (deprecated)"))
         .subcommand(
             Command::new("laps").about("Print lap timings"), // .arg(arg!(-l --list "lists test values").action(ArgAction::SetTrue)),
         )
         .subcommand(
-            Command::new("channels").about("Preview data from all channels").arg(
+            Command::new("channels").about("Get info about all available data channels").arg(
                 Arg::new("preview")
                     .long("preview")
                     .help("Give a small preview of datapoints available in channel")
@@ -42,7 +31,7 @@ fn main() {
             ),
         )
         .subcommand(
-            Command::new("export").about("Export channel data").arg(
+            Command::new("export").about("Export channel data (experimental)").arg(
                 Arg::new("channels")
                     .short('c')
                     .long("channels")
@@ -56,17 +45,6 @@ fn main() {
     let data_file = matches
         .get_one::<std::path::PathBuf>("file")
         .expect("required");
-
-    // println!("Using output mode: {output_mode}");
-
-    // match matches
-    //     .get_one::<u8>("verbose")
-    //     .expect("Counts are defaulted")
-    // {
-    //     0 => println!(),
-    //     1 => println!("Verbose logging enabled"),
-    //     _ => println!("Extra verbose logging enabled"),
-    // }
 
     let file_path = Path::new(&data_file);
     if !file_path.exists() {
