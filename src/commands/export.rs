@@ -27,111 +27,122 @@ struct DataPoint {
     v: f64,
 }
 
-/// Helper function to collect channel data for a lap.
-fn collect_channel_data(
-    lap_index: usize,
-    channel_count: usize,
-    name_fn: impl Fn(usize) -> Option<String>,
-    unit_fn: impl Fn(usize) -> Option<String>,
-    samples_fn: impl Fn(usize, usize) -> Option<xdrk::ChannelData>,
-    desired_channels: &HashSet<&str>,
-) -> Vec<ChannelData> {
-    let mut channel_data_list = Vec::new();
-
-    for channel_id in 0..channel_count {
-        if let Some(channel_name) = name_fn(channel_id) {
-            if !desired_channels.contains(channel_name.as_str()) {
-                continue;
-            }
-
-            let channel_data =
-                samples_fn(lap_index, channel_id).unwrap_or_else(|| xdrk::ChannelData::default());
-            let data_points = channel_data
-                .timestamps()
+/// Aligns channel data to the master channel using nearest-neighbor interpolation.
+fn align_nearest(
+    master_times: &[f64],
+    channel_times: &[f64],
+    channel_values: &[f64],
+) -> Vec<Option<f64>> {
+    master_times
+        .iter()
+        .map(|&master_time| {
+            channel_times
                 .iter()
-                .zip(channel_data.samples().iter())
-                .map(|(&seconds, &value)| DataPoint {
-                    s: seconds as f64,
-                    v: value as f64,
+                .zip(channel_values.iter())
+                .min_by(|(time1, _), (time2, _)| {
+                    (*time1 - master_time)
+                        .abs()
+                        .partial_cmp(&(*time2 - master_time).abs())
+                        .unwrap()
                 })
-                .collect();
-
-            channel_data_list.push(ChannelData {
-                name: channel_name,
-                unit: unit_fn(channel_id).unwrap_or_default(),
-                data: data_points,
-            });
-        }
-    }
-
-    channel_data_list
+                .map(|(_, &value)| value) // Use the nearest value
+        })
+        .collect()
 }
 
 /// Exports the laps and channel data to a CSV file.
-fn export_to_csv(laps: &[LapData], file_path: &str) -> Result<(), std::io::Error> {
-    let mut writer = Writer::from_path(file_path)?;
+fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
+    if let Ok(mut writer) = csv::Writer::from_path(file_path) {
+        eprintln!("Building csv header");
 
-    eprintln!("[CSV] Creating header");
-
-    // Create the CSV header
-    let mut headers = vec![String::from("lap"), String::from("time")];
-    if let Some(first_lap) = laps.first() {
-        for channel in &first_lap.channels {
-            headers.push(channel.name.clone());
-            headers.push(format!("{}_UNIT", channel.name));
+        // Create the CSV header
+        let mut headers = vec!["lap".to_string(), "time".to_string()];
+        if let Some(first_lap) = laps.first() {
+            for channel in &first_lap.channels {
+                headers.push(channel.name.clone());
+            }
         }
-    }
+        let header_refs: Vec<&str> = headers.iter().map(String::as_str).collect();
+        if writer.write_record(&header_refs).is_err() {
+            return false;
+        }
 
-    writer.write_record(&headers)?;
+        let mut row_counter = 0;
 
-    let mut row_counter = 0;
+        // Write data rows aligned to the master channel
+        for lap in laps {
+            eprintln!("Processing lap {}", lap.lap + 1);
 
-    // Write the data rows
-    for lap in laps {
-        eprintln!("[CSV] Processing lap {}", lap.lap + 1);
+            // Find the master channel
+            let master_channel = lap
+                .channels
+                .iter()
+                .find(|channel| channel.name == "ECEF position_X")
+                .expect("Master channel not found");
 
-        // Gather all timestamps from all channels
-        let mut all_timestamps: Vec<f64> = lap
-            .channels
-            .iter()
-            .flat_map(|channel| channel.data.iter().map(|dp| dp.s))
-            .collect();
+            let master_times: Vec<f64> = master_channel
+                .data
+                .iter()
+                .map(|data_point| data_point.s)
+                .collect();
 
-        // Deduplicate and sort the timestamps
-        all_timestamps.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        all_timestamps.dedup();
+            // Align all channels to the master channel
+            let mut aligned_data: Vec<Option<Vec<f64>>> = vec![None; lap.channels.len()];
 
-        eprintln!("[CSV] Found {} unique timestamps", all_timestamps.len());
+            for (i, channel) in lap.channels.iter().enumerate() {
+                if channel.name == "ECEF position_X" {
+                    // Add the master channel directly
+                    aligned_data[i] = Some(master_channel.data.iter().map(|dp| dp.v).collect());
+                    continue;
+                }
 
-        for &timestamp in &all_timestamps {
-            let mut row = vec![(lap.lap + 1).to_string(), format!("{:.3}", timestamp)];
-            let mut has_data = false;
+                println!("Aligning datapoints for channel {}", channel.name);
 
-            for channel in &lap.channels {
-                if let Some(data_point) = channel.data.iter().find(|dp| dp.s == timestamp) {
-                    row.push(data_point.v.to_string());
-                    row.push(channel.unit.clone());
-                    has_data = true;
+                let channel_times: Vec<f64> = channel.data.iter().map(|dp| dp.s).collect();
+                let channel_values: Vec<f64> = channel.data.iter().map(|dp| dp.v).collect();
+                let aligned_values = align_nearest(&master_times, &channel_times, &channel_values);
+                aligned_data[i] = Some(aligned_values.into_iter().flatten().collect());
+            }
+
+            println!("Writing datapoints to file");
+            for (i, &master_time) in master_times.iter().enumerate() {
+                let mut row = vec![(lap.lap + 1).to_string(), format!("{:.3}", master_time)];
+
+                for aligned_channel in &aligned_data {
+                    if let Some(values) = aligned_channel {
+                        if let Some(value) = values.get(i) {
+                            row.push(value.to_string());
+                        } else {
+                            row.push(String::new()); // Missing values
+                        }
+                    } else {
+                        row.push(String::new()); // Missing channel
+                    }
+                }
+
+                if writer.write_record(&row).is_err() {
+                    return false;
                 } else {
-                    row.push(String::new());
-                    row.push(String::new());
+                    row_counter += 1;
                 }
             }
-
-            if has_data {
-                writer.write_record(row)?;
-                row_counter += 1;
-            }
         }
-    }
 
-    eprintln!("[CSV] Done, created {} rows", row_counter);
-    writer.flush()?;
-    Ok(())
+        eprintln!("Created {} rows", row_counter);
+
+        if writer.flush().is_err() {
+            return false;
+        }
+
+        true
+    } else {
+        false
+    }
 }
 
-/// Main export function
+/// Exports the data for a run to a CSV file.
 pub fn export(run: &Run, desired_channels: Option<HashSet<&str>>) {
+    let mut laps: Vec<LapData> = Vec::new();
     let desired_channels = desired_channels.unwrap_or_else(|| {
         ["ECEF position_X", "ECEF position_Y", "ECEF position_Z"]
             .iter()
@@ -144,43 +155,77 @@ pub fn export(run: &Run, desired_channels: Option<HashSet<&str>>) {
         desired_channels.len()
     );
 
-    let mut laps = Vec::new();
-
     for lap_index in 0..run.number_of_laps() {
-        eprintln!("Processing channel data for lap {}", lap_index + 1);
+        eprintln!("Preparing channel data for lap {}", lap_index + 1);
 
-        let mut channel_data = Vec::new();
+        let mut channel_data_list: Vec<ChannelData> = Vec::new();
 
-        // Collect regular channel data
-        channel_data.extend(collect_channel_data(
-            lap_index,
-            run.channels_count(),
-            |id| run.channel_name(id).ok(),
-            |id| run.channel_unit(id).ok(),
-            |lap, id| run.lap_channel_samples(lap, id).ok(),
-            &desired_channels,
-        ));
+        // Process regular channels
+        for channel_id in 0..run.channels_count() {
+            let channel_name = run.channel_name(channel_id).unwrap_or_default();
+            if !desired_channels.contains(channel_name.as_str()) {
+                continue;
+            }
 
-        // Collect GPS RAW channel data
-        channel_data.extend(collect_channel_data(
-            lap_index,
-            run.gps_raw_channels_count(),
-            |id| run.gps_raw_channel_name(id).ok(),
-            |id| run.gps_raw_channel_unit(id).ok(),
-            |lap, id| run.lap_gps_raw_channel_samples(lap, id).ok(),
-            &desired_channels,
-        ));
+            let channel_data = run
+                .lap_channel_samples(lap_index, channel_id)
+                .unwrap_or_else(|_| xdrk::ChannelData::default());
 
+            let data_points = channel_data
+                .timestamps()
+                .iter()
+                .zip(channel_data.samples().iter())
+                .map(|(&seconds, &value)| DataPoint {
+                    s: seconds as f64,
+                    v: value as f64,
+                })
+                .collect();
+
+            channel_data_list.push(ChannelData {
+                name: channel_name,
+                unit: run.channel_unit(channel_id).unwrap_or_default(),
+                data: data_points,
+            });
+        }
+
+        // Process GPS RAW channels
+        for gps_channel_id in 0..run.gps_raw_channels_count() {
+            let channel_name = run.gps_raw_channel_name(gps_channel_id).unwrap_or_default();
+            if !desired_channels.contains(channel_name.as_str()) {
+                continue;
+            }
+
+            let channel_data = run
+                .lap_gps_raw_channel_samples(lap_index, gps_channel_id)
+                .unwrap_or_else(|_| xdrk::ChannelData::default());
+
+            let data_points = channel_data
+                .timestamps()
+                .iter()
+                .zip(channel_data.samples().iter())
+                .map(|(&seconds, &value)| DataPoint {
+                    s: seconds as f64,
+                    v: value as f64,
+                })
+                .collect();
+
+            channel_data_list.push(ChannelData {
+                name: channel_name,
+                unit: run.gps_raw_channel_unit(gps_channel_id).unwrap_or_default(),
+                data: data_points,
+            });
+        }
+
+        // Store the lap data
         laps.push(LapData {
             lap: lap_index,
-            channels: channel_data,
+            channels: channel_data_list,
         });
     }
 
-    eprintln!("Building CSV payload");
-
-    match export_to_csv(&laps, "export.csv") {
-        Ok(_) => eprintln!("Export created successfully"),
-        Err(e) => eprintln!("Export failed: {}", e),
+    if export_to_csv(&laps, "export.csv") {
+        eprintln!("Export created successfully");
+    } else {
+        eprintln!("Failed to create export");
     }
 }
