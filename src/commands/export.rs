@@ -53,13 +53,15 @@ fn align_nearest(
 /// Exports the laps and channel data to a CSV file.
 fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
     if let Ok(mut writer) = csv::Writer::from_path(file_path) {
-        eprintln!("Building csv header");
+        eprintln!("Constructing csv header");
 
         // Create the CSV header
-        let mut headers = vec!["lap".to_string(), "time".to_string()];
+        let mut headers = vec!["lap (#)".to_string(), "time (s)".to_string()];
         if let Some(first_lap) = laps.first() {
             for channel in &first_lap.channels {
-                headers.push(channel.name.clone());
+                let header_value =
+                    (channel.name.clone() + " (" + &channel.unit.clone() + ")").to_string();
+                headers.push(header_value);
             }
         }
         let header_refs: Vec<&str> = headers.iter().map(String::as_str).collect();
