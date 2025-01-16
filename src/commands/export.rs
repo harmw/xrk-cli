@@ -27,6 +27,9 @@ struct DataPoint {
     v: f64,
 }
 
+// Data channels (sensors) come at various frequencies, so we attempt to align everything against a master channel.
+const MASTER_CHANNEL_NAME: &str = "ECEF position_X";
+
 /// Aligns channel data to the master channel using nearest-neighbor interpolation.
 fn align_nearest(
     master_times: &[f64],
@@ -79,7 +82,7 @@ fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
             let master_channel = lap
                 .channels
                 .iter()
-                .find(|channel| channel.name == "ECEF position_X")
+                .find(|channel| channel.name == MASTER_CHANNEL_NAME)
                 .expect("Master channel not found");
 
             let master_times: Vec<f64> = master_channel
@@ -92,7 +95,7 @@ fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
             let mut aligned_data: Vec<Option<Vec<f64>>> = vec![None; lap.channels.len()];
 
             for (i, channel) in lap.channels.iter().enumerate() {
-                if channel.name == "ECEF position_X" {
+                if channel.name == MASTER_CHANNEL_NAME {
                     // Add the master channel directly
                     aligned_data[i] = Some(master_channel.data.iter().map(|dp| dp.v).collect());
                     continue;
