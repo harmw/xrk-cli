@@ -148,16 +148,15 @@ fn export_to_csv(laps: &[LapData], file_path: &str) -> bool {
 /// Exports the data for a run to a CSV file.
 pub fn export(run: &Run, desired_channels: Option<HashSet<&str>>) {
     let mut laps: Vec<LapData> = Vec::new();
-    let desired_channels = desired_channels.unwrap_or_else(|| {
-        ["ECEF position_X", "ECEF position_Y", "ECEF position_Z"]
-            .iter()
-            .cloned()
-            .collect()
-    });
+    let desired_channels = desired_channels.unwrap_or_default();
 
     eprintln!(
         "Preparing to export {} channel(s) per lap",
-        desired_channels.len()
+        if desired_channels.is_empty() {
+            "all".to_string()
+        } else {
+            desired_channels.len().to_string()
+        }
     );
 
     for lap_index in 0..run.number_of_laps() {
@@ -168,7 +167,7 @@ pub fn export(run: &Run, desired_channels: Option<HashSet<&str>>) {
         // Process regular channels
         for channel_id in 0..run.channels_count() {
             let channel_name = run.channel_name(channel_id).unwrap_or_default();
-            if !desired_channels.contains(channel_name.as_str()) {
+            if desired_channels.len() > 0 && !desired_channels.contains(channel_name.as_str()) {
                 continue;
             }
 
@@ -196,7 +195,7 @@ pub fn export(run: &Run, desired_channels: Option<HashSet<&str>>) {
         // Process GPS RAW channels
         for gps_channel_id in 0..run.gps_raw_channels_count() {
             let channel_name = run.gps_raw_channel_name(gps_channel_id).unwrap_or_default();
-            if !desired_channels.contains(channel_name.as_str()) {
+            if desired_channels.len() > 0 && !desired_channels.contains(channel_name.as_str()) {
                 continue;
             }
 
