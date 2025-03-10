@@ -31,16 +31,22 @@ ln -s ~/.cargo/registry/src/index.crates.io-6f17d22bba15001f/xdrk-1.0.0/aim/libm
 
 ```bash
 $ LD_LIBRARY_PATH=~/lib ./target/release/aim-reader-cli --help
-Simple CLI to inspect and process XRK race data files
+XRK Data Reader
 
-Usage: aim-reader-cli <FILE_PATH>
+Usage: xrk-cli --file <FILE> <COMMAND>
 
-Arguments:
-  <FILE_PATH>  Path to the xrk data file
+Commands:
+  info      Get session info
+  lap       Preview single lap data for all channels (deprecated)
+  laps      Print lap timings
+  channels  Get info about all available data channels
+  export    Export channel data (experimental)
+  help      Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -f, --file <FILE>  Data file to load
+  -h, --help         Print help
+  -V, --version      Print version
 ```
 
 ## TODO
